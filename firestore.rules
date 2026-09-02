@@ -1,0 +1,31 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // Anyone signed in can read profiles (for search/viewing others).
+    // Only the owner can create/edit their own profile doc.
+    match /users/{userId} {
+      allow read: if request.auth != null;
+      allow create: if request.auth != null && request.auth.uid == userId;
+      allow update: if request.auth != null && request.auth.uid == userId;
+
+      // Notifications live in a subcollection, only visible to their owner.
+      match /notifications/{notifId} {
+        allow read: if request.auth != null && request.auth.uid == userId;
+        // Any signed-in user can create a notification FOR someone else
+        // (e.g. when they like/comment on that person's post).
+        allow create: if request.auth != null;
+      }
+    }
+
+    // Any signed-in user can read the feed and create a post as themself.
+    // Only the author can delete their own post. Likes/comments can be
+    // updated by any signed-in user (so others can like/comment).
+    match /posts/{postId} {
+      allow read: if request.auth != null;
+      allow create: if request.auth != null && request.resource.data.authorId == request.auth.uid;
+      allow update: if request.auth != null;
+      allow delete: if request.auth != null && resource.data.authorId == request.auth.uid;
+    }
+  }
+}
